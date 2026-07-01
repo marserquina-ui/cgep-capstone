@@ -32,3 +32,17 @@ The strongest capstone submissions use all three layers.
 We will run your Terraform plan. For every gap your write-up claims to address technically, we will look for the corresponding remediation in the plan. For every gap your policies claim to detect, we will run your policy suite against a copy of the starter with the gap re-introduced and confirm it fails closed.
 
 Closing all eight gaps is impressive. Closing five gaps with depth and clear OSCAL traceability is what passes.
+
+## CloudTrail (Layer 1) — residual notes
+
+- **Unconditional CloudTrail KMS grant.** The CMK's `AllowServiceUse` statement grants
+  `cloudtrail.amazonaws.com` GenerateDataKey/DescribeKey with no condition. It works, but
+  AWS's reference policy scopes the grant with `aws:SourceArn` and
+  `kms:EncryptionContext:aws:cloudtrail:arn` to pin the key to one specific trail. Residual
+  hardening deliberately scoped out to avoid churn on a working baseline.
+
+- **Plan-vs-apply validation gap.** A tag value containing parentheses (`HIPAA-164.312(b)`)
+  passed `terraform plan` cleanly but was rejected at the live `PutBucketTagging` API
+  (`InvalidTag`). S3 tag values disallow parens; KMS/DynamoDB accept them. Lesson: plan-time
+  validation checks structure, not every provider-side API rule — a real limit of shift-left.
+  Fixed by switching to hyphens (`HIPAA-164.312-b`) on S3 resources.
