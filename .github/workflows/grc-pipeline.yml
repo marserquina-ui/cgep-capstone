@@ -38,15 +38,15 @@ jobs:
           conftest --version
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v4.1.0
         with:
-          cosign-release: 'v3.1.1'
+          cosign-release: 'v3.0.6'
 
       - name: Plan
         working-directory: terraform
         run: |
           terraform init -input=false
-          terraform plan -out=tfplan.binary -input=false
+          terraform plan -out=tfplan.binary -input=false -refresh=false
           terraform show -json tfplan.binary > plan.json
 
       - name: Policy Check
