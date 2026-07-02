@@ -38,6 +38,6 @@ deny contains msg if {
 	overprivileged(statement)
 	msg := sprintf(
 		"[HIPAA 164.312(a)(1)] IAM policy '%s' grants Action:* on Resource:* (full admin, violates least privilege)",
-		[resource.change.after.name],
+		[object.get(resource.change.after, "name", "<computed>")],
 	)
 }

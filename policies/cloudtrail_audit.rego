@@ -51,6 +51,6 @@ deny contains msg if {
 	not trail.change.after.kms_key_id
 	msg := sprintf(
 		"[HIPAA 164.312(b)] CloudTrail '%s' is not encrypted with a customer-managed KMS key (defense-in-depth)",
-		[trail.change.after.name],
+		[object.get(trail.change.after, "name", "<computed>")],
 	)
 }

@@ -25,6 +25,6 @@ deny contains msg if {
 	enc_default.sse_algorithm != "aws:kms"
 	msg := sprintf(
 		"[HIPAA 164.312(a)(2)(iv)] S3 bucket '%s' uses '%s' instead of CMK-based aws:kms encryption",
-		[resource.change.after.bucket, enc_default.sse_algorithm],
+		[object.get(resource.change.after, "bucket", "<computed>"), enc_default.sse_algorithm],
 	)
 }
