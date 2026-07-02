@@ -22,7 +22,7 @@ test_aws_managed_key_denied if {
 		"type": "aws_dynamodb_table",
 		"change": {"after": {
 			"name": "aws-managed-table",
-			"server_side_encryption": [{"enabled": true}],
+			"server_side_encryption": [{"enabled": true, "kms_key_arn": ""}],
 		}},
 	}]}
 }
