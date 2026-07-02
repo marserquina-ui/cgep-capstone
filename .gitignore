@@ -15,3 +15,8 @@ terraform/lambda/handler.zip
 # Local
 evidence/
 .DS_Store
+
+# Layer 2 build artifacts
+terraform/plan.json
+terraform/tfplan.binary
+policy-results.json
