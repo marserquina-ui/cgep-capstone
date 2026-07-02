@@ -1,0 +1,232 @@
+{
+  "component-definition": {
+    "uuid": "7233158a-7f6a-40be-be51-aeb60e2323ee",
+    "metadata": {
+      "title": "Acme Health Patient Intake API - Compliance Component Definition",
+      "last-modified": "2026-07-02T22:00:00.000000+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.2.1",
+      "parties": [
+        {
+          "uuid": "a6d251a7-e714-4f72-951f-9e8965c4ba17",
+          "type": "organization",
+          "name": "Mar Serquina - CGE-P Capstone"
+        }
+      ]
+    },
+    "components": [
+      {
+        "uuid": "6c1d172f-c754-4177-bd99-0ec0c258ea82",
+        "type": "service",
+        "title": "S3 Uploads Bucket (PHI at rest + in transit)",
+        "description": "The inherited Patient Intake API uploads bucket, hardened with customer-managed KMS encryption at rest and a TLS-only bucket policy. Holds PHI.",
+        "purpose": "Store patient intake uploads with encryption at rest and enforced transport security.",
+        "responsible-roles": [
+          {
+            "role-id": "provider",
+            "party-uuids": ["a6d251a7-e714-4f72-951f-9e8965c4ba17"]
+          }
+        ],
+        "control-implementations": [
+          {
+            "uuid": "092d4012-8107-453f-bbc2-2506aa60fa71",
+            "source": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json",
+            "description": "NIST 800-53 Rev 5 controls satisfied by the uploads bucket, mapped to the HIPAA Security Rule (declared primary framework).",
+            "implemented-requirements": [
+              {
+                "uuid": "303832ea-cbac-4f72-b5df-c57a2c5e5a4e",
+                "control-id": "sc-28",
+                "description": "SSE-KMS with the customer-managed CMK (aws_kms_key.phi) is enforced on the uploads bucket. Rego policy s3_sse_kms denies any non-aws:kms algorithm.",
+                "props": [
+                  {"name": "implementation-status", "value": "implemented"},
+                  {"name": "terraform-resource", "value": "aws_s3_bucket_server_side_encryption_configuration.uploads"},
+                  {"name": "hipaa-control", "value": "164.312(a)(2)(iv)", "class": "hipaa-security-rule"}
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://acme-health-intake-evidence-vault-8f25a3fd/runs/28624251453/evidence-28624251453-578e6251905184213f5dd2eee9425bef2f481791.tar.gz",
+                    "text": "Signed pipeline bundle (plan.json + policy-results.json), verifiable via scripts/verify-evidence.sh."
+                  }
+                ]
+              },
+              {
+                "uuid": "0596423c-84e9-44f2-afc6-f0d71c58633e",
+                "control-id": "sc-8",
+                "description": "A bucket policy denies all non-TLS (aws:SecureTransport=false) access. Rego policy s3_tls_only denies any bucket policy lacking this statement.",
+                "props": [
+                  {"name": "implementation-status", "value": "implemented"},
+                  {"name": "terraform-resource", "value": "aws_s3_bucket_policy.uploads_tls_only"},
+                  {"name": "hipaa-control", "value": "164.312(e)(1)", "class": "hipaa-security-rule"}
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://acme-health-intake-evidence-vault-8f25a3fd/runs/28624251453/evidence-28624251453-578e6251905184213f5dd2eee9425bef2f481791.tar.gz",
+                    "text": "Signed pipeline bundle (plan.json + policy-results.json), verifiable via scripts/verify-evidence.sh."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "facaef18-2891-46ba-be31-ea85bb83c8ca",
+        "type": "service",
+        "title": "DynamoDB Intake Table (PHI at rest)",
+        "description": "The patient intake submissions table, encrypted at rest with the customer-managed CMK.",
+        "purpose": "Persist patient intake submissions with customer-managed encryption.",
+        "responsible-roles": [
+          {
+            "role-id": "provider",
+            "party-uuids": ["a6d251a7-e714-4f72-951f-9e8965c4ba17"]
+          }
+        ],
+        "control-implementations": [
+          {
+            "uuid": "9a87dd40-fed4-4da3-80ab-212f2824bd52",
+            "source": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json",
+            "description": "NIST 800-53 Rev 5 controls satisfied by the DynamoDB table, mapped to the HIPAA Security Rule.",
+            "implemented-requirements": [
+              {
+                "uuid": "1c4e1cd0-06db-4ff5-b4d0-6d0f0e3567d2",
+                "control-id": "sc-28",
+                "description": "Server-side encryption uses the customer-managed CMK (aws_kms_key.phi). Rego policy dynamodb_cmk denies AWS-owned or AWS-managed keys.",
+                "props": [
+                  {"name": "implementation-status", "value": "implemented"},
+                  {"name": "terraform-resource", "value": "aws_dynamodb_table.intake"},
+                  {"name": "hipaa-control", "value": "164.312(a)(2)(iv)", "class": "hipaa-security-rule"}
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://acme-health-intake-evidence-vault-8f25a3fd/runs/28624251453/evidence-28624251453-578e6251905184213f5dd2eee9425bef2f481791.tar.gz",
+                    "text": "Signed pipeline bundle (plan.json + policy-results.json), verifiable via scripts/verify-evidence.sh."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "e4fb6a2d-1fbe-4ef9-b7b3-e1ae5ed0393d",
+        "type": "service",
+        "title": "CloudTrail Audit Trail",
+        "description": "Multi-region CloudTrail with log-file validation and CMK encryption, providing the account-wide audit record.",
+        "purpose": "Produce a complete, tamper-evident audit trail of all API activity.",
+        "responsible-roles": [
+          {
+            "role-id": "provider",
+            "party-uuids": ["a6d251a7-e714-4f72-951f-9e8965c4ba17"]
+          }
+        ],
+        "control-implementations": [
+          {
+            "uuid": "d6db660d-4443-4661-95dc-5dad03a139d1",
+            "source": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json",
+            "description": "NIST 800-53 Rev 5 controls satisfied by CloudTrail, mapped to the HIPAA Security Rule.",
+            "implemented-requirements": [
+              {
+                "uuid": "e97d0cf0-05af-4bb2-b569-a973c9502e03",
+                "control-id": "au-2",
+                "description": "A multi-region trail with enable_log_file_validation captures all management and global service events. Rego policy cloudtrail_audit denies the absence of a multi-region, log-validated trail.",
+                "props": [
+                  {"name": "implementation-status", "value": "implemented"},
+                  {"name": "terraform-resource", "value": "aws_cloudtrail.main"},
+                  {"name": "hipaa-control", "value": "164.312(b)", "class": "hipaa-security-rule"}
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://acme-health-intake-evidence-vault-8f25a3fd/runs/28624251453/evidence-28624251453-578e6251905184213f5dd2eee9425bef2f481791.tar.gz",
+                    "text": "Signed pipeline bundle (plan.json + policy-results.json), verifiable via scripts/verify-evidence.sh."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "64c112b7-b054-404c-a8c2-113ffbcc2a8f",
+        "type": "service",
+        "title": "Lambda Execution IAM Role (least privilege)",
+        "description": "The intake Lambda's execution role, scoped to specific DynamoDB/S3/KMS actions on specific resources.",
+        "purpose": "Grant the intake function only the access it needs, no wildcards.",
+        "responsible-roles": [
+          {
+            "role-id": "provider",
+            "party-uuids": ["a6d251a7-e714-4f72-951f-9e8965c4ba17"]
+          }
+        ],
+        "control-implementations": [
+          {
+            "uuid": "1d3c46e7-a438-4f7e-9879-cd47064fb816",
+            "source": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json",
+            "description": "NIST 800-53 Rev 5 controls satisfied by the IAM role, mapped to the HIPAA Security Rule.",
+            "implemented-requirements": [
+              {
+                "uuid": "b10bf494-f85b-4f76-90d9-b138b717bdb5",
+                "control-id": "ac-6",
+                "description": "The inline role policy grants only scoped DynamoDB/S3/KMS actions on specific resource ARNs. Rego policy iam_least_privilege denies any Action:* on Resource:* in inline policies.",
+                "props": [
+                  {"name": "implementation-status", "value": "implemented"},
+                  {"name": "terraform-resource", "value": "aws_iam_role_policy.lambda_inline"},
+                  {"name": "hipaa-control", "value": "164.312(a)(1)", "class": "hipaa-security-rule"}
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://acme-health-intake-evidence-vault-8f25a3fd/runs/28624251453/evidence-28624251453-578e6251905184213f5dd2eee9425bef2f481791.tar.gz",
+                    "text": "Signed pipeline bundle (plan.json + policy-results.json), verifiable via scripts/verify-evidence.sh."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "uuid": "c5b547dd-5fa8-4ed5-ac3a-b188d63352dc",
+        "type": "service",
+        "title": "Evidence Vault (Object Lock preservation)",
+        "description": "S3 bucket with Object Lock in COMPLIANCE mode and 365-day retention, holding the signed evidence bundles produced by the pipeline.",
+        "purpose": "Immutably preserve signed compliance evidence for the retention period.",
+        "responsible-roles": [
+          {
+            "role-id": "provider",
+            "party-uuids": ["a6d251a7-e714-4f72-951f-9e8965c4ba17"]
+          }
+        ],
+        "control-implementations": [
+          {
+            "uuid": "1be0e519-f030-41b7-b62a-2faa47215990",
+            "source": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json",
+            "description": "NIST 800-53 Rev 5 controls satisfied by the evidence vault, mapped to the HIPAA Security Rule.",
+            "implemented-requirements": [
+              {
+                "uuid": "7eca8986-c4de-477d-989d-7513b65f5328",
+                "control-id": "au-9",
+                "description": "Object Lock COMPLIANCE mode with 365-day retention protects audit evidence from deletion or modification, including by root. This is the preservation leg verified by scripts/verify-evidence.sh.",
+                "props": [
+                  {"name": "implementation-status", "value": "implemented"},
+                  {"name": "terraform-resource", "value": "aws_s3_bucket_object_lock_configuration.evidence"},
+                  {"name": "hipaa-control", "value": "164.312(b)", "class": "hipaa-security-rule"}
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://acme-health-intake-evidence-vault-8f25a3fd/runs/28624251453/receipt.json",
+                    "text": "Receipt for the signed bundle in this immutable vault, including version-id and object key."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

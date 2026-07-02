@@ -1,0 +1,1 @@
+VALID: Model /Users/marianoserquina/cgep-capstone/component-definitions/acme-health-intake/component-definition.json passed the Validator to confirm the model passes all registered validation tests.

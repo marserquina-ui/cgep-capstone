@@ -20,3 +20,14 @@ evidence/
 terraform/plan.json
 terraform/tfplan.binary
 policy-results.json
+
+# Trestle workspace scaffolding (keep only the component-definition artifacts)
+.trestle/
+assessment-plans/
+assessment-results/
+catalogs/
+dist/
+mapping-collections/
+plan-of-action-and-milestones/
+profiles/
+system-security-plans/
