@@ -32,7 +32,7 @@ deny contains msg if {
 	not any_tls_statement(doc)
 	msg := sprintf(
 		"[HIPAA 164.312(e)(1)] S3 bucket policy on '%s' does not deny non-TLS access (missing aws:SecureTransport deny)",
-		[resource.change.after.bucket],
+		[object.get(resource.change.after, "bucket", "<computed>")],
 	)
 }
 

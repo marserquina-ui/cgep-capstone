@@ -33,7 +33,7 @@ deny contains msg if {
 	not flag_enabled(resource, flag)
 	msg := sprintf(
 		"[HIPAA 164.312(a)(1)] S3 public access block on '%s' does not enable '%s' (must be true)",
-		[resource.change.after.bucket, flag],
+		[object.get(resource.change.after, "bucket", "<computed>"), flag],
 	)
 }
 

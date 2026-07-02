@@ -25,7 +25,7 @@ deny contains msg if {
 	not resource.change.after.server_side_encryption
 	msg := sprintf(
 		"[HIPAA 164.312(a)(2)(iv)] DynamoDB table '%s' has no customer-managed CMK (uses default AWS-owned key)",
-		[resource.change.after.name],
+		[object.get(resource.change.after, "name", "<computed>")],
 	)
 }
 
@@ -36,6 +36,6 @@ deny contains msg if {
 	not sse.kms_key_arn
 	msg := sprintf(
 		"[HIPAA 164.312(a)(2)(iv)] DynamoDB table '%s' uses an AWS-managed key, not a customer-managed CMK",
-		[resource.change.after.name],
+		[object.get(resource.change.after, "name", "<computed>")],
 	)
 }
