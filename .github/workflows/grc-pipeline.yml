@@ -1,0 +1,98 @@
+name: GRC Evidence Pipeline
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ROLE_ARN: arn:aws:iam::560599485314:role/cgep-grc-gate
+
+jobs:
+  grc-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.5"
+
+      - name: Setup Conftest
+        run: |
+          curl -sSL -o /tmp/conftest.tar.gz https://github.com/open-policy-agent/conftest/releases/download/v0.68.2/conftest_0.68.2_Linux_x86_64.tar.gz
+          tar -xzf /tmp/conftest.tar.gz -C /tmp
+          sudo mv /tmp/conftest /usr/local/bin/conftest
+          conftest --version
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v3.1.1'
+
+      - name: Plan
+        working-directory: terraform
+        run: |
+          terraform init -input=false
+          terraform plan -out=tfplan.binary -input=false
+          terraform show -json tfplan.binary > plan.json
+
+      - name: Policy Check
+        id: policy
+        run: |
+          set +e
+          ./policies/policy-gate.sh terraform/plan.json policy-results.json
+          echo "gate_exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Apply (gated)
+        if: steps.policy.outputs.gate_exit == '0' && github.event_name == 'workflow_dispatch'
+        working-directory: terraform
+        run: echo "Gate passed. Apply is executed as a controlled manual step (see WRITEUP)."
+
+      - name: Sign and Upload evidence
+        id: sign
+        if: always()
+        env:
+          VAULT: ${{ vars.EVIDENCE_VAULT }}
+          RUN_ID: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          cp terraform/plan.json evidence/plan.json
+          cp policy-results.json evidence/policy-results.json
+          BUNDLE="evidence-${RUN_ID}-${SHA}.tar.gz"
+          ( cd evidence && tar czf "../${BUNDLE}" . )
+          shasum -a 256 "${BUNDLE}" | awk '{print $1}' > "${BUNDLE}.sha256"
+          cosign sign-blob --yes --bundle "${BUNDLE}.sig.bundle" "${BUNDLE}"
+          KEY_PREFIX="runs/${RUN_ID}"
+          aws s3 cp "${BUNDLE}" "s3://${VAULT}/${KEY_PREFIX}/${BUNDLE}"
+          aws s3 cp "${BUNDLE}.sha256" "s3://${VAULT}/${KEY_PREFIX}/${BUNDLE}.sha256"
+          aws s3 cp "${BUNDLE}.sig.bundle" "s3://${VAULT}/${KEY_PREFIX}/${BUNDLE}.sig.bundle"
+          VERSION_ID=$(aws s3api head-object --bucket "${VAULT}" --key "${KEY_PREFIX}/${BUNDLE}" --query VersionId --output text)
+          SHA256_VAL=$(cat "${BUNDLE}.sha256")
+          printf '{"run_id":"%s","vault":"%s","bundle_key":"%s","version_id":"%s","sha256":"%s","commit":"%s"}\n' "${RUN_ID}" "${VAULT}" "${KEY_PREFIX}/${BUNDLE}" "${VERSION_ID}" "${SHA256_VAL}" "${SHA}" > receipt.json
+          aws s3 cp receipt.json "s3://${VAULT}/${KEY_PREFIX}/receipt.json"
+          echo "Evidence stored at s3://${VAULT}/${KEY_PREFIX}/"
+
+      - name: Enforce policy gate
+        if: always()
+        run: |
+          if [ "${{ steps.policy.outputs.gate_exit }}" != "0" ]; then
+            echo "POLICY GATE FAILED — see signed evidence in the vault."
+            exit 1
+          fi
+          echo "POLICY GATE PASSED."
